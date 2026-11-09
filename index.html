@@ -147,20 +147,33 @@
       const isDestroy = event.button === 0;
       if (!isPlace && !isDestroy) return;
       event.preventDefault();
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(world.meshes);
-      if (intersects.length === 0) return;
-      const hit = intersects[0];
-      const pos = hit.point.clone().add(hit.face.normal.multiplyScalar(0.5));
-      const bx = Math.floor(pos.x + 0.5), by = Math.floor(pos.y + 0.5), bz = Math.floor(pos.z + 0.5);
-      if (isDestroy) { removeBlock(bx, by, bz); }
-      else {
-        const adj = hit.point.clone().add(hit.face.normal.multiplyScalar(0.5));
-        const ax = Math.floor(adj.x + 0.5), ay = Math.floor(adj.y + 0.5), az = Math.floor(adj.z + 0.5);
-        const playerPos = controls.getObject().position;
-        const dx = ax - playerPos.x, dy = ay - (playerPos.y + playerHeight), dz = az - playerPos.z;
-        if (dx*dx + dy*dy + dz*dz > 2.25) return;
-        setBlock(ax, ay, az, SELECTED_BLOCK);
+      try {
+        raycaster.setFromCamera(mouse, camera);
+        raycaster.far = 50;
+        const intersects = raycaster.intersectObjects(world.meshes);
+        if (intersects.length === 0) return;
+        const hit = intersects[0];
+        const normal = hit.face.normal;
+
+        // Destruction: remove the block we're looking at (round hit point directly).
+        const bx = Math.floor(hit.point.x + 0.5);
+        const by = Math.floor(hit.point.y + 0.5);
+        const bz = Math.floor(hit.point.z + 0.5);
+
+        if (isDestroy) {
+          removeBlock(bx, by, bz);
+        } else {
+          // Placement: block adjacent to the face we hit (normal offset then round).
+          const ax = Math.floor(hit.point.x + normal.x * 0.5 + 0.5);
+          const ay = Math.floor(hit.point.y + normal.y * 0.5 + 0.5);
+          const az = Math.floor(hit.point.z + normal.z * 0.5 + 0.5);
+          const playerPos = controls.getObject().position;
+          const dx = ax - playerPos.x, dy = ay - (playerPos.y + playerHeight), dz = az - playerPos.z;
+          if (dx * dx + dy * dy + dz * dz > 2.25) return; // max reach ~1.5
+          setBlock(ax, ay, az, SELECTED_BLOCK);
+        }
+      } catch (e) {
+        console.error('place/destroy error:', e);
       }
     }
 
