@@ -141,6 +141,33 @@
       blockHint.classList.add('show');
     }
 
+    function rayMarchFromCamera(maxDist) {
+      const origin = camera.position.clone();
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      const step = 0.1;
+      const steps = Math.floor(maxDist / step);
+      for (let i = 0; i <= steps; i++) {
+        const d = i * step;
+        const x = origin.x + dir.x * d;
+        const y = origin.y + dir.y * d;
+        const z = origin.z + dir.z * d;
+        const bx = Math.round(x), by = Math.round(y), bz = Math.round(z);
+        if (world.getBlock(bx, by, bz) !== undefined) {
+          // Determine which face of the block the ray hit
+          const nx = Math.min(Math.abs(x - (bx - 0.5)), Math.abs(x - (bx + 0.5)));
+          const ny = Math.min(Math.abs(y - (by - 0.5)), Math.abs(y - (by + 0.5)));
+          const nz = Math.min(Math.abs(z - (bz - 0.5)), Math.abs(z - (bz + 0.5)));
+          const normal = new THREE.Vector3(0, 0, -1);
+          if (nx < ny && nx < nz) normal.set(x < bx ? -1 : 1, 0, 0);
+          else if (ny < nx && ny < nz) normal.set(0, y < by ? -1 : 1, 0);
+          else normal.set(0, 0, z < bz ? -1 : 1);
+          return { x: bx, y: by, z: bz, normal, dist: d };
+        }
+      }
+      return null;
+    }
+
     function placeDestroy(event) {
       if (!isLocked) return;
       const isPlace = event.button === 2;
@@ -148,25 +175,15 @@
       if (!isPlace && !isDestroy) return;
       event.preventDefault();
       try {
-        raycaster.setFromCamera(mouse, camera);
-        raycaster.far = 50;
-        const intersects = raycaster.intersectObjects(world.meshes);
-        if (intersects.length === 0) return;
-        const hit = intersects[0];
-        const normal = hit.face.normal;
-
-        // Destruction: move from the hit surface back to the block's grid coord.
-        const bx = Math.floor(hit.point.x - normal.x * 0.5 + 1e-6);
-        const by = Math.floor(hit.point.y - normal.y * 0.5 + 1e-6);
-        const bz = Math.floor(hit.point.z - normal.z * 0.5 + 1e-6);
-
+        const hit = rayMarchFromCamera(5);
+        if (!hit) return;
         if (isDestroy) {
-          removeBlock(bx, by, bz);
+          removeBlock(hit.x, hit.y, hit.z);
         } else {
-          // Placement: move from the hit surface to the adjacent block's grid coord.
-          const ax = Math.floor(hit.point.x + normal.x * 0.5 + 1e-6);
-          const ay = Math.floor(hit.point.y + normal.y * 0.5 + 1e-6);
-          const az = Math.floor(hit.point.z + normal.z * 0.5 + 1e-6);
+          // Place block adjacent to the face that was hit
+          const ax = hit.x + hit.normal.x;
+          const ay = hit.y + hit.normal.y;
+          const az = hit.z + hit.normal.z;
           const playerPos = controls.getObject().position;
           const dx = ax - playerPos.x, dy = ay - (playerPos.y + playerHeight), dz = az - playerPos.z;
           if (dx * dx + dy * dy + dz * dz > 2.25) return; // max reach ~1.5
@@ -247,14 +264,13 @@
         // updated obj.position above. Calling them would double-apply movement.
       }
 
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(world.meshes);
-      if (intersects.length > 0 && isLocked) {
-        const hit = intersects[0];
-        const pos = hit.point.clone().add(hit.face.normal.multiplyScalar(0.5));
-        highlight.position.set(Math.floor(pos.x+0.5), Math.floor(pos.y+0.5), Math.floor(pos.z+0.5));
+      const hit = rayMarchFromCamera(50);
+      if (hit && isLocked) {
+        highlight.position.set(hit.x, hit.y, hit.z);
         highlight.visible = true;
-      } else { highlight.visible = false; }
+      } else {
+        highlight.visible = false;
+      }
 
       renderer.render(scene, camera);
     }
