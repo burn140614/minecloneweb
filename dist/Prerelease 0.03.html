@@ -295,18 +295,50 @@ const canvas = document.getElementById('canvas');
         const z = origin.z + dir.z * d;
         const bx = Math.round(x), by = Math.round(y), bz = Math.round(z);
         if (world.getBlock(bx, by, bz) !== undefined) {
-          // Determine which face of the block the ray hit
-          const nx = Math.min(Math.abs(x - (bx - 0.5)), Math.abs(x - (bx + 0.5)));
-          const ny = Math.min(Math.abs(y - (by - 0.5)), Math.abs(y - (by + 0.5)));
-          const nz = Math.min(Math.abs(z - (bz - 0.5)), Math.abs(z - (bz + 0.5)));
-          const normal = new THREE.Vector3(0, 0, -1);
-          if (nx < ny && nx < nz) normal.set(x < bx ? -1 : 1, 0, 0);
-          else if (ny < nx && ny < nz) normal.set(0, y < by ? -1 : 1, 0);
-          else normal.set(0, 0, z < bz ? -1 : 1);
+          // Determine which face of the block the ray entered through,
+          // based on the camera look direction (not interior distances).
+          // The outward normal points back toward the camera/viewer.
+          const absX = Math.abs(dir.x), absY = Math.abs(dir.y), absZ = Math.abs(dir.z);
+          let normal;
+          if (absX >= absY && absX >= absZ) {
+            // Ray moving primarily along X: hit the X face.
+            // If dir.x > 0 (moving right), entered from left (-x) face, normal = (-1,0,0).
+            normal = new THREE.Vector3(dir.x > 0 ? -1 : 1, 0, 0);
+          } else if (absY >= absZ) {
+            normal = new THREE.Vector3(0, dir.y > 0 ? -1 : 1, 0);
+          } else {
+            normal = new THREE.Vector3(0, 0, dir.z > 0 ? -1 : 1);
+          }
           return { x: bx, y: by, z: bz, normal, dist: d };
         }
       }
       return null;
+    }
+
+    function placeDestroy(event) {
+      if (!isLocked) return;
+      const isPlace = event.button === 2;
+      const isDestroy = event.button === 0;
+      if (!isPlace && !isDestroy) return;
+      event.preventDefault();
+      try {
+        const hit = rayMarchFromCamera(5);
+        if (!hit) return;
+        if (isDestroy) {
+          removeBlock(hit.x, hit.y, hit.z);
+        } else {
+          // Place block adjacent to the face that was hit.
+          const ax = hit.x + hit.normal.x;
+          const ay = hit.y + hit.normal.y;
+          const az = hit.z + hit.normal.z;
+          const playerPos = controls.getObject().position;
+          const dx = ax - playerPos.x, dy = ay - (playerPos.y + playerHeight), dz = az - playerPos.z;
+          if (dx * dx + dy * dy + dz * dz > 2.25) return; // max reach ~1.5
+          setBlock(ax, ay, az, SELECTED_BLOCK);
+        }
+      } catch (e) {
+        console.error('place/destroy error:', e);
+      }
     }
 
     function placeDestroy(event) {

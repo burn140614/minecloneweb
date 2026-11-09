@@ -3,7 +3,7 @@ import path from 'path';
 
 const ROOT = process.cwd();
 const OUT_DIR = path.join(ROOT, 'dist');
-const VERSION = '0.03';
+const VERSION = '0.04';
 const OUT_FILE = path.join(OUT_DIR, `Prerelease ${VERSION}.html`);
 
 function read(p) { return fs.readFileSync(p, 'utf8'); }
