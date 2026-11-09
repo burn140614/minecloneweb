@@ -68,8 +68,6 @@
 import * as THREE from 'https://esm.sh/three@0.166.1';
 import { PointerLockControls } from 'https://esm.sh/three@0.166.1/examples/jsm/controls/PointerLockControls.js';
 
-import * as THREE from 'three';
-
 export const BLOCK_TYPES = [
   { id: 0, name: 'Grass', color: 0x5d9b4a },
   { id: 1, name: 'Dirt', color: 0x7a5a3a },
@@ -213,12 +211,7 @@ export function initInput() {
   };
 }
 
-import * as THREE from 'three';
-    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-    import { initWorld, getBlock, setBlock, removeBlock, BLOCK_TYPES, SELECTED_BLOCK, setSelectedBlock } from './src/world.js';
-    import { initInput } from './src/input.js';
-
-    const canvas = document.getElementById('canvas');
+const canvas = document.getElementById('canvas');
     const overlay = document.getElementById('overlay');
     const blockHint = document.getElementById('blockHint');
     const size = { width: window.innerWidth, height: window.innerHeight };
@@ -230,9 +223,15 @@ import * as THREE from 'three';
     const camera = new THREE.PerspectiveCamera(60, size.width / size.height, 0.1, 100);
     camera.position.set(0, 3, 0);
 
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(size.width, size.height);
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(size.width, size.height);
+    } catch (e) {
+      overlay.innerHTML = '<div style="color:#ff6b6b;">WebGL could not be initialized. Please try a different browser or enable hardware acceleration.</div>';
+      throw e;
+    }
 
     const controls = new PointerLockControls(camera, document.body);
     const playerHeight = 1.75;
@@ -241,6 +240,10 @@ import * as THREE from 'three';
     overlay.addEventListener('click', () => { if (!isLocked) controls.lock(); });
     controls.addEventListener('lock', () => { isLocked = true; overlay.style.display = 'none'; });
     controls.addEventListener('unlock', () => { isLocked = false; overlay.style.display = 'flex'; });
+    document.addEventListener('pointerlockerror', () => {
+      overlay.style.display = 'flex';
+      overlay.innerHTML = '<div style="color:#ff6b6b;">Pointer lock was blocked by the browser. Click to try again.</div>';
+    });
 
     const world = initWorld({ scene });
     const input = initInput();
