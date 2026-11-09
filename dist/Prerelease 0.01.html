@@ -296,18 +296,18 @@ const canvas = document.getElementById('canvas');
         const hit = intersects[0];
         const normal = hit.face.normal;
 
-        // Destruction: remove the block we're looking at (round hit point directly).
-        const bx = Math.floor(hit.point.x + 0.5);
-        const by = Math.floor(hit.point.y + 0.5);
-        const bz = Math.floor(hit.point.z + 0.5);
+        // Destruction: move from the hit surface back to the block's grid coord.
+        const bx = Math.floor(hit.point.x - normal.x * 0.5 + 1e-6);
+        const by = Math.floor(hit.point.y - normal.y * 0.5 + 1e-6);
+        const bz = Math.floor(hit.point.z - normal.z * 0.5 + 1e-6);
 
         if (isDestroy) {
           removeBlock(bx, by, bz);
         } else {
-          // Placement: block adjacent to the face we hit (normal offset then round).
-          const ax = Math.floor(hit.point.x + normal.x * 0.5 + 0.5);
-          const ay = Math.floor(hit.point.y + normal.y * 0.5 + 0.5);
-          const az = Math.floor(hit.point.z + normal.z * 0.5 + 0.5);
+          // Placement: move from the hit surface to the adjacent block's grid coord.
+          const ax = Math.floor(hit.point.x + normal.x * 0.5 + 1e-6);
+          const ay = Math.floor(hit.point.y + normal.y * 0.5 + 1e-6);
+          const az = Math.floor(hit.point.z + normal.z * 0.5 + 1e-6);
           const playerPos = controls.getObject().position;
           const dx = ax - playerPos.x, dy = ay - (playerPos.y + playerHeight), dz = az - playerPos.z;
           if (dx * dx + dy * dy + dz * dz > 2.25) return; // max reach ~1.5
