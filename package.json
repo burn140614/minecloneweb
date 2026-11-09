@@ -1,0 +1,12 @@
+{
+  "name": "minecraft-clone",
+  "version": "0.0.1",
+  "description": "Browser-based Minecraft clone (Three.js voxel engine)",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "start": "npx serve .",
+    "build": "node build.js"
+  },
+  "devDependencies": {}
+}
