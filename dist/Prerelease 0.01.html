@@ -328,33 +328,51 @@ const canvas = document.getElementById('canvas');
         const jump = input.getJump();
         input.resetJump();
 
-        const vel = controls.getObject().velocity || new THREE.Vector3();
+        const obj = controls.getObject();
+        const vel = obj.velocity || new THREE.Vector3();
+
+        // Camera-relative horizontal direction vectors (world space).
+        // Whatever way you look, dir points forward and right points sideways.
         const dir = new THREE.Vector3();
         camera.getWorldDirection(dir);
-        dir.y = 0; dir.normalize();
+        dir.y = 0;
+        if (dir.length() > 0) dir.normalize();
         const right = new THREE.Vector3().crossVectors(camera.up, dir).normalize();
 
-        const accel = new THREE.Vector3().addScaledVector(dir, move.y).addScaledVector(right, move.x).multiplyScalar(speed * 20);
-        vel.x += accel.x * dt; vel.z += accel.z * dt;
-        vel.x *= Math.pow(0.4, dt * 60); vel.z *= Math.pow(0.4, dt * 60);
+        // Acceleration in the direction the camera is looking / strafing.
+        const accel = new THREE.Vector3()
+          .addScaledVector(dir, move.y)    // W/S = forward/back
+          .addScaledVector(right, move.x)  // A/D = strafe left/right
+          .multiplyScalar(speed * 20);
 
-        const obj = controls.getObject();
-        obj.position.x += vel.x * dt; obj.position.z += vel.z * dt;
+        vel.x += accel.x * dt;
+        vel.z += accel.z * dt;
+
+        // Friction so movement stops when keys are released.
+        vel.x *= Math.pow(0.4, dt * 60);
+        vel.z *= Math.pow(0.4, dt * 60);
+
+        // Apply movement in world space (dir/right already point where camera faces).
+        obj.position.x += vel.x * dt;
+        obj.position.z += vel.z * dt;
 
         const gx = Math.round(obj.position.x), gz = Math.round(obj.position.z);
         const h = world.getHeight(gx, gz);
         const floorY = h + playerHeight;
-        if (obj.position.y < floorY) { obj.position.y = floorY; vel.y = 0; canJump = true; }
-        else {
-          vel.y -= 24 * dt;
+        if (obj.position.y < floorY) {
+          obj.position.y = floorY;
+          vel.y = 0;
+          canJump = true;
+        } else {
+          vel.y -= 24 * dt; // gravity
           obj.position.y += vel.y * dt;
           canJump = false;
         }
         if (jump && canJump) { vel.y = 9.0; canJump = false; }
 
-        controls.getObject().velocity = vel;
-        controls.moveRight(-vel.x * dt);
-        controls.moveForward(-vel.z * dt);
+        obj.velocity = vel;
+        // NOTE: do NOT call controls.moveRight/moveForward here — we already
+        // updated obj.position above. Calling them would double-apply movement.
       }
 
       raycaster.setFromCamera(mouse, camera);
